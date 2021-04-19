@@ -24,7 +24,7 @@ var (
 func init() {
 	flag.StringVar(&role_arn, "role-arn", "", "ARN of the role to assume")
 	flag.StringVar(&audience, "audience", "sts.amazonaws.com", "Audience the JWT token will be for")
-	flag.StringVar(&socket_path, "socketPath", "/tmp/agent.sock", "Socket path to talk to spiffe agent")
+	flag.StringVar(&socket_path, "socketPath", "unix:/tmp/agent.sock", "Socket path to talk to spiffe agent")
 }
 
 type Output struct {
@@ -38,9 +38,10 @@ type Output struct {
 func main() {
 	flag.Parse()
 
-	ctx, _ := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	clientOptions := workloadapi.WithClientOptions(workloadapi.WithAddr(socket_path))
-	// Create a JWTSource to fetch JWT-SVIDs
 	jwtSource, err := workloadapi.NewJWTSource(ctx, clientOptions)
 	if err != nil {
 		log.Fatalf("Unable to create JWTSource: %v", err)
@@ -56,7 +57,7 @@ func main() {
 
 	mySession := session.Must(session.NewSession())
 	svc := sts.New(mySession)
-	awsCred, err := svc.AssumeRoleWithWebIdentity(&sts.AssumeRoleWithWebIdentityInput{
+	awsCred, err := svc.AssumeRoleWithWebIdentityWithContext(ctx, &sts.AssumeRoleWithWebIdentityInput{
 		RoleArn:          &role_arn,
 		RoleSessionName:  aws.String("spiffe-aws2-wrap"),
 		WebIdentityToken: aws.String(svid.Marshal()),
@@ -65,7 +66,6 @@ func main() {
 		log.Fatalf("Unable to perform assume-role-with-web-identity: %v", err)
 	}
 
-	log.Info(awsCred)
 	extractedCred := Output{
 		Version:         1,
 		AccessKeyId:     *awsCred.Credentials.AccessKeyId,

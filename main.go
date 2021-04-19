@@ -16,13 +16,15 @@ import (
 )
 
 var (
-	role_arn    string
-	audience    string
-	socket_path string
+	role_arn          string
+	role_session_name string
+	audience          string
+	socket_path       string
 )
 
 func init() {
 	flag.StringVar(&role_arn, "role-arn", "", "ARN of the role to assume")
+	flag.StringVar(&role_session_name, "role-session-name", "spiffe-aws2-credential-process", "Role session name to use")
 	flag.StringVar(&audience, "audience", "sts.amazonaws.com", "Audience the JWT token will be for")
 	flag.StringVar(&socket_path, "socketPath", "unix:/tmp/agent.sock", "Socket path to talk to spiffe agent")
 }
@@ -59,7 +61,7 @@ func main() {
 	svc := sts.New(mySession)
 	awsCred, err := svc.AssumeRoleWithWebIdentityWithContext(ctx, &sts.AssumeRoleWithWebIdentityInput{
 		RoleArn:          &role_arn,
-		RoleSessionName:  aws.String("spiffe-aws2-wrap"),
+		RoleSessionName:  &role_session_name,
 		WebIdentityToken: aws.String(svid.Marshal()),
 	})
 	if err != nil {

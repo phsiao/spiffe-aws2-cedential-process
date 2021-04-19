@@ -28,7 +28,7 @@ func init() {
 }
 
 type Output struct {
-	Version         string
+	Version         int
 	AccessKeyId     string
 	SecretAccessKey string
 	SessionToken    string
@@ -67,11 +67,11 @@ func main() {
 
 	log.Info(awsCred)
 	extractedCred := Output{
-		Version:         "1",
+		Version:         1,
 		AccessKeyId:     *awsCred.Credentials.AccessKeyId,
 		SecretAccessKey: *awsCred.Credentials.SecretAccessKey,
 		SessionToken:    *awsCred.Credentials.SessionToken,
-		Expiration:      awsCred.Credentials.Expiration.String(),
+		Expiration:      awsCred.Credentials.Expiration.Format(time.RFC3339),
 	}
 
 	output, err := json.MarshalIndent(&extractedCred, "", "  ")

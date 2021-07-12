@@ -24,7 +24,7 @@ Here we can simplify it to be
 
 ```
 [profile default]
-credentail_process = spiffe-aws-credential-process --role-arn arn:aws:iam::123456789012:role/my-role
+credential_process = spiffe-aws2-credential-process --role-arn arn:aws:iam::123456789012:role/my-role
 ```
 
 # Installation

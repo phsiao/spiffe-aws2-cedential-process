@@ -20,6 +20,7 @@ var (
 	role_session_name string
 	audience          string
 	socket_path       string
+	timeout           time.Duration
 )
 
 func init() {
@@ -27,6 +28,7 @@ func init() {
 	flag.StringVar(&role_session_name, "role-session-name", "spiffe-aws2-credential-process", "Role session name to use")
 	flag.StringVar(&audience, "audience", "sts.amazonaws.com", "Audience the JWT token will be for")
 	flag.StringVar(&socket_path, "socketPath", "unix:/tmp/agent.sock", "Socket path to talk to spiffe agent")
+	flag.DurationVar(&timeout, "timeout", 10*time.Second, "timeout waiting for the process to finish")
 }
 
 type Output struct {
@@ -40,7 +42,7 @@ type Output struct {
 func main() {
 	flag.Parse()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	clientOptions := workloadapi.WithClientOptions(workloadapi.WithAddr(socket_path))

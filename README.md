@@ -44,4 +44,6 @@ The current supported options and their defaults are:
         Role session name to use (default "spiffe-aws2-credential-process")
   -socketPath string
         Socket path to talk to spiffe agent (default "unix:/tmp/agent.sock")
+  -timeout duration
+        timeout waiting for the process to finish (default 10s)
 ```

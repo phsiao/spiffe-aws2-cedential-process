@@ -11,23 +11,26 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	log "github.com/sirupsen/logrus"
+	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"github.com/spiffe/go-spiffe/v2/svid/jwtsvid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 )
 
 var (
+	audience          string
 	role_arn          string
 	role_session_name string
-	audience          string
 	socket_path       string
+	spiffe_id         string
 	timeout           time.Duration
 )
 
 func init() {
+	flag.StringVar(&audience, "audience", "sts.amazonaws.com", "Audience the JWT token will be for")
 	flag.StringVar(&role_arn, "role-arn", "", "ARN of the role to assume")
 	flag.StringVar(&role_session_name, "role-session-name", "spiffe-aws2-credential-process", "Role session name to use")
-	flag.StringVar(&audience, "audience", "sts.amazonaws.com", "Audience the JWT token will be for")
 	flag.StringVar(&socket_path, "socketPath", "unix:/tmp/agent.sock", "Socket path to talk to spiffe agent")
+	flag.StringVar(&spiffe_id, "spiffe-id", "", "Request a specific SPIFFE ID (instead of all SPIFFE IDs)")
 	flag.DurationVar(&timeout, "timeout", 10*time.Second, "timeout waiting for the process to finish")
 }
 
@@ -45,6 +48,18 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
+	params := jwtsvid.Params{
+		Audience: audience,
+	}
+	if len(spiffe_id) > 0 {
+		subject, err := spiffeid.FromString(spiffe_id)
+		if err != nil {
+			log.Fatalf("Unable to parse SPIFFE ID: %s", spiffe_id)
+		} else {
+			params.Subject = subject
+		}
+	}
+
 	clientOptions := workloadapi.WithClientOptions(workloadapi.WithAddr(socket_path))
 	jwtSource, err := workloadapi.NewJWTSource(ctx, clientOptions)
 	if err != nil {
@@ -52,9 +67,7 @@ func main() {
 	}
 	defer jwtSource.Close()
 
-	svid, err := jwtSource.FetchJWTSVID(ctx, jwtsvid.Params{
-		Audience: audience,
-	})
+	svid, err := jwtSource.FetchJWTSVID(ctx, params)
 	if err != nil {
 		log.Fatalf("Unable to fetch SVID: %v", err)
 	}

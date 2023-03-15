@@ -1,6 +1,6 @@
 module github.com/phsiao/spiffe-aws2-credential-process
 
-go 1.16
+go 1.18
 
 require (
 	github.com/aws/aws-sdk-go v1.44.221
@@ -9,9 +9,18 @@ require (
 )
 
 require (
+	github.com/Microsoft/go-winio v0.6.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/zeebo/errs v1.3.0 // indirect
 	golang.org/x/crypto v0.7.0 // indirect
+	golang.org/x/mod v0.9.0 // indirect
+	golang.org/x/net v0.8.0 // indirect
+	golang.org/x/sys v0.6.0 // indirect
+	golang.org/x/text v0.8.0 // indirect
 	golang.org/x/tools v0.7.0 // indirect
 	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4 // indirect
+	google.golang.org/grpc v1.53.0 // indirect
 	google.golang.org/protobuf v1.29.1 // indirect
+	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 )

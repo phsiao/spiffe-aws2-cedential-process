@@ -74,12 +74,16 @@ func main() {
 
 	mySession := session.Must(session.NewSession())
 	svc := sts.New(mySession)
-	awsCred, err := svc.AssumeRoleWithWebIdentityWithContext(ctx, &sts.AssumeRoleWithWebIdentityInput{
+	req, awsCred := svc.AssumeRoleWithWebIdentityRequest(&sts.AssumeRoleWithWebIdentityInput{
 		RoleArn:          &role_arn,
 		RoleSessionName:  &role_session_name,
 		WebIdentityToken: aws.String(svid.Marshal()),
 	})
-	if err != nil {
+	req.SetContext(ctx)
+	// InvalidIdentityToken error is a temporary error that can occur
+	// when assuming an Role with a JWT web identity token.
+	req.RetryErrorCodes = append(req.RetryErrorCodes, sts.ErrCodeInvalidIdentityTokenException)
+	if err := req.Send(); err != nil {
 		log.Fatalf("Unable to perform assume-role-with-web-identity: %v", err)
 	}
 

@@ -79,8 +79,8 @@ func (c *Cache) filenameByRole(role string) string {
 }
 
 func (c *Cache) Get(role string) (*Output, bool) {
-	fn := path.Join(c.Dir, c.filenameByRole(role))
-	if f, err := os.Open(fn); err != nil {
+	fp := path.Join(c.Dir, c.filenameByRole(role))
+	if f, err := os.Open(fp); err != nil {
 		return nil, false
 	} else {
 
@@ -104,12 +104,19 @@ func (c *Cache) Get(role string) (*Output, bool) {
 }
 
 func (c *Cache) Set(role string, output *Output) error {
-	fn := path.Join(c.Dir, c.filenameByRole(role))
+	fn := c.filenameByRole(role)
+	fp := path.Join(c.Dir, fn)
 	if bytes, err := json.Marshal(output); err != nil {
 		return err
 	} else {
-		if err := os.WriteFile(fn, bytes, 0600); err != nil {
+		if f, err := os.CreateTemp(c.Dir, fn+"-"); err != nil {
 			return err
+		} else {
+			f.Close()
+			if err := os.WriteFile(f.Name(), bytes, 0600); err != nil {
+				return err
+			}
+			os.Rename(f.Name(), fp)
 		}
 
 		return nil

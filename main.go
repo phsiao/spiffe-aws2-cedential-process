@@ -82,23 +82,23 @@ func (c *Cache) Get(role string) (*Output, bool) {
 	fn := path.Join(c.Dir, c.filenameByRole(role))
 	if f, err := os.Open(fn); err != nil {
 		return nil, false
+	}
+
+	if bytes, err := io.ReadAll(f); err != nil {
+		return nil, false
 	} else {
-		if bytes, err := io.ReadAll(f); err != nil {
-			return nil, false
-		} else {
-			output := Output{}
-			if err := json.Unmarshal(bytes, &output); err != nil {
-				return nil, false
-			}
-
-			// check expiration
-			if tm, err := time.Parse(time.RFC3339, output.Expiration); err == nil && tm.After(time.Now().Add(REFRESH_HEAD_ROOM)) {
-				return &output, true
-			}
-
-			// don't use cache
+		output := Output{}
+		if err := json.Unmarshal(bytes, &output); err != nil {
 			return nil, false
 		}
+
+		// check expiration
+		if tm, err := time.Parse(time.RFC3339, output.Expiration); err == nil && tm.After(time.Now().Add(REFRESH_HEAD_ROOM)) {
+			return &output, true
+		}
+
+		// don't use cache
+		return nil, false
 	}
 }
 

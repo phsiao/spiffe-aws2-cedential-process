@@ -197,7 +197,7 @@ func main() {
 			log.Warnf("Unable to create cache: %v", err)
 		} else {
 			if err := cache.Set(role_arn, &extractedCred); err != nil {
-				log.Warn(err)
+				log.Warnf("Unable to update cache: %v", err)
 			}
 		}
 	}

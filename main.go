@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"os"
+	"path"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -16,6 +20,10 @@ import (
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 )
 
+const (
+	REFRESH_HEAD_ROOM = 5 * time.Minute
+)
+
 var (
 	audience          string
 	role_arn          string
@@ -23,6 +31,7 @@ var (
 	socket_path       string
 	spiffe_id         string
 	timeout           time.Duration
+	cache_dir         string
 )
 
 func init() {
@@ -32,6 +41,7 @@ func init() {
 	flag.StringVar(&socket_path, "socketPath", "unix:/tmp/agent.sock", "Socket path to talk to spiffe agent")
 	flag.StringVar(&spiffe_id, "spiffe-id", "", "Request a specific SPIFFE ID (instead of all SPIFFE IDs)")
 	flag.DurationVar(&timeout, "timeout", 10*time.Second, "timeout waiting for the process to finish")
+	flag.StringVar(&cache_dir, "cache-dir", "", "cache directory to use for storing the IAM credentials; if set the process would check cache before issuing a new request")
 }
 
 type Output struct {
@@ -40,6 +50,70 @@ type Output struct {
 	SecretAccessKey string
 	SessionToken    string
 	Expiration      string
+}
+
+type Cache struct {
+	Dir string
+}
+
+func NewCache(dir string) (*Cache, error) {
+	if _, err := os.Open(dir); err != nil {
+		return nil, err
+	}
+
+	fn := path.Join(dir, "validate")
+	if _, err := os.Create(fn); err != nil {
+		return nil, err
+	} else {
+		os.Remove(fn)
+	}
+
+	return &Cache{
+		Dir: dir,
+	}, nil
+}
+
+func (c *Cache) filenameByRole(role string) string {
+	h := sha256.New()
+	h.Write([]byte(role))
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+func (c *Cache) Get(role string) (*Output, bool) {
+	fn := path.Join(c.Dir, c.filenameByRole(role))
+	if f, err := os.Open(fn); err != nil {
+		return nil, false
+	} else {
+		if bytes, err := io.ReadAll(f); err != nil {
+			return nil, false
+		} else {
+			output := Output{}
+			if err := json.Unmarshal(bytes, &output); err != nil {
+				return nil, false
+			} else {
+				// check expiration
+				if tm, err := time.Parse(time.RFC3339, output.Expiration); err == nil && tm.After(time.Now().Add(REFRESH_HEAD_ROOM)) {
+					return &output, true
+				} else {
+					// don't use cache
+					return nil, false
+				}
+			}
+		}
+	}
+}
+
+func (c *Cache) Set(role string, output *Output) error {
+	fn := path.Join(c.Dir, c.filenameByRole(role))
+	if bytes, err := json.Marshal(output); err != nil {
+		return err
+	} else {
+		if err := os.WriteFile(fn, bytes, 0600); err != nil {
+			return err
+		} else {
+			return nil
+		}
+	}
 }
 
 func main() {
@@ -72,6 +146,22 @@ func main() {
 		log.Fatalf("Unable to fetch SVID: %v", err)
 	}
 
+	// try read from cache
+	if cache_dir != "" {
+		if cache, err := NewCache(cache_dir); err != nil {
+			log.Warnf("Unable to create cache: %v", err)
+		} else {
+			if cached, ok := cache.Get(role_arn); ok {
+				output, err := json.MarshalIndent(&cached, "", "  ")
+				if err != nil {
+					log.Warn(err)
+				}
+				fmt.Print(string(output))
+				os.Exit(0)
+			}
+		}
+	}
+
 	mySession := session.Must(session.NewSession())
 	svc := sts.New(mySession)
 	req, awsCred := svc.AssumeRoleWithWebIdentityRequest(&sts.AssumeRoleWithWebIdentityInput{
@@ -97,8 +187,17 @@ func main() {
 
 	output, err := json.MarshalIndent(&extractedCred, "", "  ")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Unable to marshal extracted credential: %v", err)
 	}
 
 	fmt.Print(string(output))
+
+	// update cache
+	if cache_dir != "" {
+		if cache, err := NewCache(cache_dir); err == nil {
+			if err := cache.Set(role_arn, &extractedCred); err != nil {
+				log.Warn(err)
+			}
+		}
+	}
 }

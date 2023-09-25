@@ -193,7 +193,9 @@ func main() {
 
 	// update cache
 	if cache_dir != "" {
-		if cache, err := NewCache(cache_dir); err == nil {
+		if cache, err := NewCache(cache_dir); err != nil {
+			log.Warnf("Unable to create cache: %v", err)
+		} else {
 			if err := cache.Set(role_arn, &extractedCred); err != nil {
 				log.Warn(err)
 			}

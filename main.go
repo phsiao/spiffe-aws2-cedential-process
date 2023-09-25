@@ -64,9 +64,8 @@ func NewCache(dir string) (*Cache, error) {
 	fn := path.Join(dir, "validate")
 	if _, err := os.Create(fn); err != nil {
 		return nil, err
-	} else {
-		os.Remove(fn)
 	}
+	os.Remove(fn)
 
 	return &Cache{
 		Dir: dir,
@@ -94,10 +93,10 @@ func (c *Cache) Get(role string) (*Output, bool) {
 				// check expiration
 				if tm, err := time.Parse(time.RFC3339, output.Expiration); err == nil && tm.After(time.Now().Add(REFRESH_HEAD_ROOM)) {
 					return &output, true
-				} else {
-					// don't use cache
-					return nil, false
 				}
+
+				// don't use cache
+				return nil, false
 			}
 		}
 	}
@@ -110,9 +109,9 @@ func (c *Cache) Set(role string, output *Output) error {
 	} else {
 		if err := os.WriteFile(fn, bytes, 0600); err != nil {
 			return err
-		} else {
-			return nil
 		}
+
+		return nil
 	}
 }
 

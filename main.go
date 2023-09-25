@@ -89,15 +89,15 @@ func (c *Cache) Get(role string) (*Output, bool) {
 			output := Output{}
 			if err := json.Unmarshal(bytes, &output); err != nil {
 				return nil, false
-			} else {
-				// check expiration
-				if tm, err := time.Parse(time.RFC3339, output.Expiration); err == nil && tm.After(time.Now().Add(REFRESH_HEAD_ROOM)) {
-					return &output, true
-				}
-
-				// don't use cache
-				return nil, false
 			}
+
+			// check expiration
+			if tm, err := time.Parse(time.RFC3339, output.Expiration); err == nil && tm.After(time.Now().Add(REFRESH_HEAD_ROOM)) {
+				return &output, true
+			}
+
+			// don't use cache
+			return nil, false
 		}
 	}
 }
@@ -156,7 +156,7 @@ func main() {
 					log.Warn(err)
 				}
 				fmt.Print(string(output))
-				os.Exit(0)
+				return
 			}
 		}
 	}

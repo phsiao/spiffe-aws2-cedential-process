@@ -61,29 +61,40 @@ func NewCache(dir string) (*Cache, error) {
 		return nil, err
 	}
 
-	fn := path.Join(dir, "validate")
-	if _, err := os.Create(fn); err != nil {
+	if f, err := os.CreateTemp(dir, "validate-"); err != nil {
 		return nil, err
+	} else {
+		os.Remove(f.Name())
 	}
-	os.Remove(fn)
 
 	return &Cache{
 		Dir: dir,
 	}, nil
 }
 
-func (c *Cache) filenameByRole(role string) string {
+func (c *Cache) filenameByArguments(role string, aud string, sess string, sid string) (string, error) {
 	h := sha256.New()
-	h.Write([]byte(role))
-	return fmt.Sprintf("%x", h.Sum(nil))
+	// serialization-then-hashing is needed to avoid collisions
+	bytes, err := json.Marshal([]string{role, aud, sess, sid})
+	if err != nil {
+		return "", err
+	}
+	_, err = h.Write(bytes)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
-func (c *Cache) Get(role string) (*Output, bool) {
-	fp := path.Join(c.Dir, c.filenameByRole(role))
+func (c *Cache) Get(role string, aud string, sess string, sid string) (*Output, bool) {
+	fn, err := c.filenameByArguments(role, aud, sess, sid)
+	if err != nil {
+		return nil, false
+	}
+	fp := path.Join(c.Dir, fn)
 	if f, err := os.Open(fp); err != nil {
 		return nil, false
 	} else {
-
 		if bytes, err := io.ReadAll(f); err != nil {
 			return nil, false
 		} else {
@@ -103,8 +114,11 @@ func (c *Cache) Get(role string) (*Output, bool) {
 	}
 }
 
-func (c *Cache) Set(role string, output *Output) error {
-	fn := c.filenameByRole(role)
+func (c *Cache) Set(role string, aud string, sess string, sid string, output *Output) error {
+	fn, err := c.filenameByArguments(role, aud, sess, sid)
+	if err != nil {
+		return err
+	}
 	fp := path.Join(c.Dir, fn)
 	if bytes, err := json.Marshal(output); err != nil {
 		return err
@@ -161,7 +175,7 @@ func main() {
 		if err != nil {
 			log.Warnf("Unable to create cache: %v", err)
 		} else {
-			if cached, ok := cache.Get(role_arn); ok {
+			if cached, ok := cache.Get(role_arn, audience, role_session_name, spiffe_id); ok {
 				output, err := json.MarshalIndent(&cached, "", "  ")
 				if err != nil {
 					log.Warn(err)
@@ -204,7 +218,7 @@ func main() {
 
 	// update cache
 	if cache != nil {
-		if err := cache.Set(role_arn, &extractedCred); err != nil {
+		if err := cache.Set(role_arn, audience, role_session_name, spiffe_id, &extractedCred); err != nil {
 			log.Warnf("Unable to update cache: %v", err)
 		}
 	}

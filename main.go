@@ -91,27 +91,31 @@ func (c *Cache) Get(role string, aud string, sess string, sid string) (*Output, 
 	if err != nil {
 		return nil, false
 	}
+
 	fp := path.Join(c.Dir, fn)
-	if f, err := os.Open(fp); err != nil {
+	f, err := os.Open(fp)
+	if err != nil {
 		return nil, false
-	} else {
-		if bytes, err := io.ReadAll(f); err != nil {
-			return nil, false
-		} else {
-			output := Output{}
-			if err := json.Unmarshal(bytes, &output); err != nil {
-				return nil, false
-			}
-
-			// check expiration
-			if tm, err := time.Parse(time.RFC3339, output.Expiration); err == nil && tm.After(time.Now().Add(REFRESH_HEAD_ROOM)) {
-				return &output, true
-			}
-
-			// don't use cache
-			return nil, false
-		}
 	}
+
+	bytes, err := io.ReadAll(f)
+	if err != nil {
+		return nil, false
+	}
+
+	output := Output{}
+	err = json.Unmarshal(bytes, &output)
+	if err != nil {
+		return nil, false
+	}
+
+	// check expiration
+	if tm, err := time.Parse(time.RFC3339, output.Expiration); err == nil && tm.After(time.Now().Add(REFRESH_HEAD_ROOM)) {
+		return &output, true
+	}
+
+	// don't use cache
+	return nil, false
 }
 
 func (c *Cache) Set(role string, aud string, sess string, sid string, output *Output) error {
@@ -119,22 +123,27 @@ func (c *Cache) Set(role string, aud string, sess string, sid string, output *Ou
 	if err != nil {
 		return err
 	}
-	fp := path.Join(c.Dir, fn)
-	if bytes, err := json.Marshal(output); err != nil {
-		return err
-	} else {
-		if f, err := os.CreateTemp(c.Dir, fn+"-"); err != nil {
-			return err
-		} else {
-			f.Close()
-			if err := os.WriteFile(f.Name(), bytes, 0600); err != nil {
-				return err
-			}
-			os.Rename(f.Name(), fp)
-		}
 
-		return nil
+	fp := path.Join(c.Dir, fn)
+	bytes, err := json.Marshal(output)
+	if err != nil {
+		return err
 	}
+
+	f, err := os.CreateTemp(c.Dir, fn+"-")
+	if err != nil {
+		return err
+	}
+	f.Close()
+
+	err = os.WriteFile(f.Name(), bytes, 0600)
+	if err != nil {
+		os.Remove(f.Name())
+		return err
+	}
+
+	os.Rename(f.Name(), fp)
+	return nil
 }
 
 func main() {
@@ -170,7 +179,6 @@ func main() {
 	// try read from cache
 	var cache *Cache
 	if cache_dir != "" {
-		var err error
 		cache, err = NewCache(cache_dir)
 		if err != nil {
 			log.Warnf("Unable to create cache: %v", err)
@@ -218,7 +226,7 @@ func main() {
 
 	// update cache
 	if cache != nil {
-		if err := cache.Set(role_arn, audience, role_session_name, spiffe_id, &extractedCred); err != nil {
+		if err = cache.Set(role_arn, audience, role_session_name, spiffe_id, &extractedCred); err != nil {
 			log.Warnf("Unable to update cache: %v", err)
 		}
 	}

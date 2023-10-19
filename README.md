@@ -30,20 +30,24 @@ credential_process = spiffe-aws2-credential-process --role-arn arn:aws:iam::1234
 # Installation
 
 ```
-# go get github.com/phsiao/spiffe-aws2-credential-process
+# go install github.com/phsiao/spiffe-aws2-credential-process
 ```
 
 The current supported options and their defaults are:
 
 ```
   -audience string
-        Audience the JWT token will be for (default "sts.amazonaws.com")
+    	Audience the JWT token will be for (default "sts.amazonaws.com")
   -role-arn string
-        ARN of the role to assume
+    	ARN of the role to assume
   -role-session-name string
-        Role session name to use (default "spiffe-aws2-credential-process")
+    	Role session name to use (default "spiffe-aws2-credential-process")
+  -session-duration duration
+    	The duration, in seconds, of the role session. (default 1h0m0s)
   -socketPath string
-        Socket path to talk to spiffe agent (default "unix:/tmp/agent.sock")
+    	Socket path to talk to spiffe agent (default "unix:/tmp/agent.sock")
+  -spiffe-id string
+    	Request a specific SPIFFE ID (instead of all SPIFFE IDs)
   -timeout duration
-        timeout waiting for the process to finish (default 10s)
+    	timeout waiting for the process to finish (default 10s)
 ```

@@ -22,6 +22,7 @@ var (
 	role_session_name string
 	socket_path       string
 	spiffe_id         string
+	session_duration  time.Duration
 	timeout           time.Duration
 )
 
@@ -31,6 +32,7 @@ func init() {
 	flag.StringVar(&role_session_name, "role-session-name", "spiffe-aws2-credential-process", "Role session name to use")
 	flag.StringVar(&socket_path, "socketPath", "unix:/tmp/agent.sock", "Socket path to talk to spiffe agent")
 	flag.StringVar(&spiffe_id, "spiffe-id", "", "Request a specific SPIFFE ID (instead of all SPIFFE IDs)")
+	flag.DurationVar(&session_duration, "session-duration", 3600*time.Second, "The duration, in seconds, of the role session.")
 	flag.DurationVar(&timeout, "timeout", 10*time.Second, "timeout waiting for the process to finish")
 }
 
@@ -78,6 +80,7 @@ func main() {
 		RoleArn:          &role_arn,
 		RoleSessionName:  &role_session_name,
 		WebIdentityToken: aws.String(svid.Marshal()),
+		DurationSeconds:  aws.Int64(int64(session_duration.Seconds())),
 	})
 	req.SetContext(ctx)
 	// InvalidIdentityToken error is a temporary error that can occur
